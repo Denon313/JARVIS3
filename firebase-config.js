@@ -1,11 +1,11 @@
-/* Public Firebase web configuration only. Fill these values from Firebase Console.
-   This file is safe to publish only when Firebase Security Rules and authorized domains are configured.
-   NEVER place Groq/Gemini/OpenAI secret keys in this file. */
+
+/* Public Firebase web configuration */
 export const firebaseConfig = {
-  apiKey: "YOUR_FIREBASE_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_FIREBASE_APP_ID"
+  apiKey: "AIzaSyDzftzkgddxOlVxCQ3D07gqhD9pS-8UzAo",
+  authDomain: "jarvis-2ae5a.firebaseapp.com",
+  projectId: "jarvis-2ae5a",
+  storageBucket: "jarvis-2ae5a.firebasestorage.app",
+  messagingSenderId: "96753749783",
+  appId: "1:96753749783:web:16fdfc8ce74cf45f83f152",
+  measurementId: "G-T9B2G49TRD"
 };
