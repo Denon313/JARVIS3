@@ -3,7 +3,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/fireba
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 
 const $ = (id) => document.getElementById(id);
-const state = { provider: localStorage.getItem("jarvis_provider") || "groq", apiKey: localStorage.getItem("jarvis_api_key") || "", model: (localStorage.getItem("jarvis_model") === "gemini-2.5-flash" ? "gemini-3.8-flash" : (localStorage.getItem("jarvis_model") || "")), webSearch: localStorage.getItem("jarvis_web_search") === "true", remember: localStorage.getItem("jarvis_remember_key") === "true", image: null, imageData: null, busy: false, user: null, history: JSON.parse(localStorage.getItem("jarvis_history") || "[]"), activeHistory: null, auth: null };
+const state = { provider: localStorage.getItem("jarvis_provider") || "groq", apiKey: localStorage.getItem("jarvis_api_key") || "", model: (() => { const m = (localStorage.getItem("jarvis_model") || "").replace(/^models\//, ""); return m === "gemini-2.5-flash" ? "gemini-3.8-flash" : m; })(), webSearch: localStorage.getItem("jarvis_web_search") === "true", remember: localStorage.getItem("jarvis_remember_key") === "true", image: null, imageData: null, busy: false, user: null, history: JSON.parse(localStorage.getItem("jarvis_history") || "[]"), activeHistory: null, auth: null };
 const defaults = { groq: "llama-3.3-70b-versatile", gemini: "gemini-3.8-flash" };
 const icons = {
   assistant: '<svg viewBox="0 0 48 48"><path d="M24 5 42 15.5v17L24 43 6 32.5v-17L24 5Z"/><path d="M15 29V19l9-5 9 5v10l-9 5-9-5Z"/></svg>',
@@ -59,7 +59,7 @@ function updateAccountUI(){
  const user=state.user;$("accountName").textContent=user?(user.displayName||user.email||"کاربر جارویس"):"حساب مهمان";$("accountHint").textContent=user?(user.email||"وارد شده"):"ورود برای همگام‌سازی";$("userAvatar").textContent=user?(user.displayName||user.email||"J").slice(0,1).toUpperCase():"J";$("settingsAccountName").textContent=user?(user.displayName||user.email):"حساب مهمان";$("settingsAccountHint").textContent=user?(user.email||"ورود با موفقیت انجام شد"):"هنوز وارد نشده‌ای";$("googleSignIn").textContent=user?"وارد شده‌اید":"ورود با Google";$("signOutButton").hidden=!user;
 }
 function saveSettings(){
- state.provider=$("providerSelect").value;state.model=$("modelInput").value.trim();state.webSearch=$("webSearchToggle").checked;state.remember=$("rememberKeyToggle").checked;
+ state.provider=$("providerSelect").value;state.model=$("modelInput").value.trim().replace(/^models\//, "");if(state.provider==="gemini"&&state.model==="gemini-2.5-flash")state.model="gemini-3.8-flash";$("modelInput").value=state.model;state.webSearch=$("webSearchToggle").checked;state.remember=$("rememberKeyToggle").checked;
  state.apiKey=$("apiKeyInput").value.trim();
  localStorage.setItem("jarvis_provider",state.provider);localStorage.setItem("jarvis_model",state.model);localStorage.setItem("jarvis_web_search",String(state.webSearch));localStorage.setItem("jarvis_remember_key",String(state.remember));
  if(state.remember&&state.apiKey)localStorage.setItem("jarvis_api_key",state.apiKey);else localStorage.removeItem("jarvis_api_key");
