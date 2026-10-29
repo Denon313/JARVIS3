@@ -1,5 +1,4 @@
-
-/* Public Firebase web configuration */
+/* Public Firebase web configuration. Do not put AI provider secret keys here. */
 export const firebaseConfig = {
   apiKey: "AIzaSyDzftzkgddxOlVxCQ3D07gqhD9pS-8UzAo",
   authDomain: "jarvis-2ae5a.firebaseapp.com",

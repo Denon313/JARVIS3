@@ -1,237 +1,159 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, getDocs, serverTimestamp, increment } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
-
-/* Add your own Firebase web config in firebase-config.js. Never put AI provider keys here. */
 import { firebaseConfig } from "./firebase-config.js";
-const ADMIN_EMAIL = "mhdyk3613@gmail.com";
-const $ = (id) => document.getElementById(id);
-let auth, db, currentUser = null, activeChatId = null, currentMessages = [], pendingImage = null;
-let localSettings = loadLocalSettings();
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 
-function loadLocalSettings(){try{return JSON.parse(localStorage.getItem("jarvis35_settings")||"{}")}catch{return {}}}
-function saveLocalSettings(){localStorage.setItem("jarvis35_settings",JSON.stringify(localSettings))}
-function toast(msg){const el=$("toast");el.textContent=msg;el.classList.remove("hidden");clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.add("hidden"),3000)}
-function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
-function safeUrl(s){try{const u=new URL(s);return ["https:","http:"].includes(u.protocol)?u.href:"#"}catch{return "#"}}
-function markdownLite(text){
-  let s=escapeHtml(text);
-  s=s.replace(/```([\s\S]*?)```/g,(_,c)=>`<pre><code>${c.trim()}</code></pre>`);
+const $ = (id) => document.getElementById(id);
+const state = { provider: localStorage.getItem("jarvis_provider") || "groq", apiKey: localStorage.getItem("jarvis_api_key") || "", model: localStorage.getItem("jarvis_model") || "", webSearch: localStorage.getItem("jarvis_web_search") === "true", remember: localStorage.getItem("jarvis_remember_key") === "true", image: null, imageData: null, busy: false, user: null, history: JSON.parse(localStorage.getItem("jarvis_history") || "[]"), activeHistory: null, auth: null };
+const defaults = { groq: "llama-3.3-70b-versatile", gemini: "gemini-2.5-flash" };
+const icons = {
+  assistant: '<svg viewBox="0 0 48 48"><path d="M24 5 42 15.5v17L24 43 6 32.5v-17L24 5Z"/><path d="M15 29V19l9-5 9 5v10l-9 5-9-5Z"/></svg>',
+  user: '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
+  copy: '<svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>'
+};
+function toast(message, error=false){ const node=document.createElement("div"); node.className="toast"+(error?" error":""); node.textContent=message; $("toastRegion").append(node); setTimeout(()=>node.remove(),4800); }
+function setConnection(kind,text){ $("statusDot").className="status-dot"+(kind==="online"?" online":kind==="error"?" error":""); $("connectionText").textContent=text; }
+function safeText(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function renderMarkdown(text){
+  // Small safe renderer: escape HTML first, then format code, headings, lists, bold and line breaks.
+  let s=safeText(text);
+  const blocks=[];
+  s=s.replace(/```([\w+-]*)\n?([\s\S]*?)```/g,(_,lang,code)=>{blocks.push(`<pre><code>${code.trim()}</code></pre>`);return `@@BLOCK${blocks.length-1}@@`;});
   s=s.replace(/`([^`]+)`/g,"<code>$1</code>");
-  s=s.replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>");
-  s=s.replace(/\[([^\]]+)\]\((https?:\/\/[^ )]+)\)/g,(_,t,u)=>`<a href="${safeUrl(u)}" target="_blank" rel="noopener noreferrer">${t}</a>`);
-  s=s.replace(/(^|\s)(https?:\/\/[^\s<]+)/g,(_,p,u)=>`${p}<a href="${safeUrl(u)}" target="_blank" rel="noopener noreferrer">${u}</a>`);
-  return s;
+  s=s.replace(/^### (.+)$/gm,"<h3>$1</h3>").replace(/^## (.+)$/gm,"<h2>$1</h2>").replace(/^# (.+)$/gm,"<h2>$1</h2>");
+  s=s.replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/\*(.+?)\*/g,"<em>$1</em>");
+  s=s.replace(/^\s*[-*] (.+)$/gm,"<li>$1</li>").replace(/(<li>.*<\/li>\n?)+/g,m=>`<ul>${m}</ul>`);
+  s=s.split(/\n{2,}/).map(p=>/^@@BLOCK\d+@@$/.test(p.trim())?p.trim():p.startsWith("<h")||p.startsWith("<ul>")?p:`<p>${p.replace(/\n/g,"<br>")}</p>`).join("");
+  return s.replace(/@@BLOCK(\d+)@@/g,(_,i)=>blocks[Number(i)]);
 }
-function setActivity(title,detail){$("activityTitle").textContent=title;$("activityDetail").textContent=detail;$("activity").classList.remove("hidden");$("topStatus").textContent=title}
-function hideActivity(){$("activity").classList.add("hidden");$("topStatus").textContent="آماده به کار"}
-function isAdmin(){return currentUser?.email?.toLowerCase()===ADMIN_EMAIL.toLowerCase()}
-function newId(){return crypto.randomUUID?crypto.randomUUID():String(Date.now())+"_"+Math.random().toString(36).slice(2)}
-function getKeys(provider){return Array.isArray(localSettings.keys?.[provider])?localSettings.keys[provider]:[]}
-function setKeys(provider,keys){localSettings.keys ||= {};localSettings.keys[provider]=keys;saveLocalSettings();renderKeys()}
-function renderKeys(){
-  for(const [provider,id] of [["groq","groqKeys"],["gemini","geminiKeys"],["custom","customKeys"]]){
-    const wrap=$(id);wrap.innerHTML="";
-    getKeys(provider).forEach((item,i)=>{
-      const row=document.createElement("div");row.className="key-row";
-      const input=document.createElement("input");input.type="password";input.autocomplete="off";input.placeholder=`API ${i+1} · کلید`;input.value=item.key||"";input.addEventListener("change",()=>{const a=getKeys(provider);a[i].key=input.value;setKeys(provider,a)});
-      const model=document.createElement("input");model.className="key-model";model.placeholder="Model";model.value=item.model||"";model.addEventListener("change",()=>{const a=getKeys(provider);a[i].model=model.value;setKeys(provider,a)});
-      const del=document.createElement("button");del.textContent="×";del.title="حذف";del.onclick=()=>setKeys(provider,getKeys(provider).filter((_,j)=>j!==i));
-      row.append(input,model,del);wrap.append(row);
-    });
-  }
+function renderHistory(){
+  const box=$("historyList"); box.replaceChildren();
+  state.history.slice(0,12).forEach((item,i)=>{const b=document.createElement("button");b.className="history-entry";b.innerHTML='<svg viewBox="0 0 24 24"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H5l-1 2v-6.5A7.5 7.5 0 1 1 20 11.5Z"/></svg><span></span>';b.querySelector("span").textContent=item.title||"گفت‌وگوی جدید";b.addEventListener("click",()=>loadHistory(i));box.append(b);});
 }
-function addKey(provider){setKeys(provider,[...getKeys(provider),{key:"",model:""}]);const list={groq:"groqKeys",gemini:"geminiKeys",custom:"customKeys"}[provider];$(list).lastElementChild?.querySelector("input")?.focus()}
-function showPanel(name){$("settingsPanel").classList.toggle("hidden",name!=="settings");$("adminPanel").classList.toggle("hidden",name!=="admin");if(name==="settings")fillSettings();if(name==="admin")loadAdminPanel()}
-function fillSettings(){
-  $("displayName").value=localSettings.displayName||"";
-  $("tone").value=localSettings.tone||"balanced";$("thinking").value=localSettings.thinking||"medium";
-  $("memoryEnabled").checked=localSettings.memoryEnabled!==false;$("speechEnabled").checked=!!localSettings.speechEnabled;
-  $("voiceEnabled").checked=localSettings.voiceEnabled!==false;$("provider").value=localSettings.provider||"groq";
-  $("modelName").value=localSettings.modelName||"";$("customBase").value=localSettings.customBase||"";
-  renderKeys();
+function saveHistory(){
+  if(!state.activeHistory) state.activeHistory={title:"گفت‌وگوی جدید",messages:[],updated:Date.now()};
+  if(!state.activeHistory.title||state.activeHistory.title==="گفت‌وگوی جدید"){const first=state.activeHistory.messages.find(m=>m.role==="user");if(first)state.activeHistory.title=first.text.slice(0,32)+(first.text.length>32?"…":"");}
+  state.activeHistory.updated=Date.now();
+  const found=state.history.findIndex(h=>h.id===state.activeHistory.id);
+  if(found>=0)state.history[found]=state.activeHistory;else{state.activeHistory.id=Date.now().toString(36);state.history.unshift(state.activeHistory);}
+  state.history=state.history.slice(0,30);localStorage.setItem("jarvis_history",JSON.stringify(state.history));renderHistory();
+}
+function loadHistory(i){
+  const item=state.history[i];if(!item)return;state.activeHistory=item;$("messages").replaceChildren();$("welcome").hidden=true;
+  item.messages.forEach(m=>appendMessage(m.role,m.text,false));document.querySelectorAll(".nav-item").forEach(n=>n.classList.toggle("active",n.dataset.view==="history"));$("sidebar").classList.remove("open");
+}
+function appendMessage(role,text,save=true){
+  $("welcome").hidden=true;const row=document.createElement("article");row.className="message "+(role==="user"?"user":"assistant");
+  const avatar=document.createElement("div");avatar.className="message-avatar";avatar.innerHTML=role==="user"?icons.user:icons.assistant;
+  const wrap=document.createElement("div");wrap.className="message-content";wrap.innerHTML=renderMarkdown(text);
+  row.append(avatar,wrap);
+  if(role==="assistant"){const tools=document.createElement("div");tools.className="message-tools";const copy=document.createElement("button");copy.innerHTML=icons.copy+" کپی پاسخ";copy.addEventListener("click",async()=>{try{await navigator.clipboard.writeText(text);toast("پاسخ کپی شد.");}catch{toast("کپی در این مرورگر در دسترس نیست.",true);}});tools.append(copy);wrap.append(tools);}
+  $("messages").append(row);$("chatStage").scrollTop=$("chatStage").scrollHeight;
+  if(save&&state.activeHistory){state.activeHistory.messages.push({role,text});saveHistory();}
+  return row;
+}
+function showTyping(){const row=document.createElement("article");row.className="message assistant";row.innerHTML=`<div class="message-avatar">${icons.assistant}</div><div class="message-content"><div class="typing"><span></span><span></span><span></span></div></div>`;$("messages").append(row);$("chatStage").scrollTop=$("chatStage").scrollHeight;return row;}
+function updateModelLabel(){const provider=state.provider==="groq"?"Groq":"Gemini";$("activeModelLabel").textContent=state.apiKey?`${provider} · ${(state.model||defaults[state.provider])}`:"مدل تنظیم نشده";}
+function openSettings(){ $("settingsOverlay").hidden=false;$("providerSelect").value=state.provider;$("apiKeyInput").value=state.apiKey;$("modelInput").value=state.model;$("webSearchToggle").checked=state.webSearch;$("rememberKeyToggle").checked=state.remember; }
+function closeSettings(){ $("settingsOverlay").hidden=true; }
+function updateAccountUI(){
+ const user=state.user;$("accountName").textContent=user?(user.displayName||user.email||"کاربر جارویس"):"حساب مهمان";$("accountHint").textContent=user?(user.email||"وارد شده"):"ورود برای همگام‌سازی";$("userAvatar").textContent=user?(user.displayName||user.email||"J").slice(0,1).toUpperCase():"J";$("settingsAccountName").textContent=user?(user.displayName||user.email):"حساب مهمان";$("settingsAccountHint").textContent=user?(user.email||"ورود با موفقیت انجام شد"):"هنوز وارد نشده‌ای";$("googleSignIn").textContent=user?"وارد شده‌اید":"ورود با Google";$("signOutButton").hidden=!user;
 }
 function saveSettings(){
-  localSettings={...localSettings,displayName:$("displayName").value.trim(),tone:$("tone").value,thinking:$("thinking").value,memoryEnabled:$("memoryEnabled").checked,speechEnabled:$("speechEnabled").checked,voiceEnabled:$("voiceEnabled").checked,provider:$("provider").value,modelName:$("modelName").value.trim(),customBase:$("customBase").value.trim()};
-  saveLocalSettings();$("settingsStatus").textContent="تنظیمات ذخیره شد.";toast("تنظیمات ذخیره شد");
+ state.provider=$("providerSelect").value;state.model=$("modelInput").value.trim();state.webSearch=$("webSearchToggle").checked;state.remember=$("rememberKeyToggle").checked;
+ state.apiKey=$("apiKeyInput").value.trim();
+ localStorage.setItem("jarvis_provider",state.provider);localStorage.setItem("jarvis_model",state.model);localStorage.setItem("jarvis_web_search",String(state.webSearch));localStorage.setItem("jarvis_remember_key",String(state.remember));
+ if(state.remember&&state.apiKey)localStorage.setItem("jarvis_api_key",state.apiKey);else localStorage.removeItem("jarvis_api_key");
+ updateModelLabel();
 }
-function addMessage(role,text,opts={}){
-  $("welcome").classList.add("hidden");
-  const wrap=document.createElement("article");wrap.className=`message ${role}`;
-  const avatar=document.createElement("div");avatar.className="avatar";avatar.textContent=role==="user"?(localSettings.displayName?.slice(0,1)||"شما"):"J";
-  const body=document.createElement("div");body.className="message-body";
-  const label=document.createElement("div");label.className="message-label";label.textContent=role==="user"?(localSettings.displayName||"شما"):"JARVIS";
-  const bubble=document.createElement("div");bubble.className="bubble";bubble.innerHTML=markdownLite(text);
-  if(opts.image){const img=document.createElement("img");img.src=opts.image;img.alt="تصویر پیوست‌شده";bubble.append(document.createElement("br"),img)}
-  body.append(label,bubble);wrap.append(avatar,body);$("messages").append(wrap);$("chatPanel").scrollTop=$("chatPanel").scrollHeight;return bubble;
+async function apiRequest(messages,imageData){
+ const model=state.model||defaults[state.provider];
+ if(!state.apiKey)throw new Error("کلید API وارد نشده. از تنظیمات جارویس یک کلید معتبر وارد کن.");
+ if(state.provider==="groq"){
+   if(imageData)throw new Error("در این نسخه، ارسال تصویر از مسیر Gemini پیاده‌سازی شده. در تنظیمات، Gemini رو انتخاب کن و کلید API مربوط به Google AI Studio رو وارد کن.");
+   const response=await fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${state.apiKey}`},body:JSON.stringify({model, messages:messages.map(m=>({role:m.role==="assistant"?"assistant":m.role==="system"?"system":"user",content:m.content||m.text})),temperature:0.7,max_tokens:4096})});
+   const data=await response.json().catch(()=>({}));
+   if(!response.ok)throw new Error(data.error?.message||`خطای Groq (${response.status}). کلید، نام مدل و محدودیت استفاده رو بررسی کن.`);
+   const answer=data.choices?.[0]?.message?.content;if(!answer)throw new Error("Groq پاسخی برنگردوند.");return answer;
+ }
+ const contents=messages.filter(m=>m.role!=="system").map(m=>({role:m.role==="assistant"?"model":"user",parts:[{text:m.content||m.text}]}));
+ if(contents.length&&messages[0]?.role==="system")contents[0].parts.unshift({text:`دستورهای رفتاری: ${messages[0].content}\n\n`});
+ if(imageData&&contents.length){contents[contents.length-1].parts.push({inlineData:{mimeType:imageData.mimeType,data:imageData.base64}});}
+ const payload={contents,generationConfig:{temperature:0.7,maxOutputTokens:4096}};
+ if(state.webSearch)payload.tools=[{google_search:{}}];
+ const response=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(state.apiKey)}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+ const data=await response.json().catch(()=>({}));
+ if(!response.ok)throw new Error(data.error?.message||`خطای Gemini (${response.status}). کلید و نام مدل رو بررسی کن.`);
+ const answer=data.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("").trim();if(!answer)throw new Error("Gemini پاسخی برنگردوند؛ ممکنه درخواست توسط مدل رد شده باشه.");return answer;
 }
-function appendSearchCards(bubble,queryText){
-  const box=document.createElement("div");box.className="search-results";
-  const items=[
-    {title:"جست‌وجوی وب",url:`https://www.google.com/search?q=${encodeURIComponent(queryText)}`,desc:"نتایج وب"},
-    {title:"تصاویر",url:`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(queryText)}`,desc:"نمایش تصاویر"},
-    {title:"ویکی‌پدیا",url:`https://fa.wikipedia.org/w/index.php?search=${encodeURIComponent(queryText)}`,desc:"دانشنامه"}
-  ];
-  for(const it of items){const card=document.createElement("div");card.className="search-card";card.innerHTML=`<b>${escapeHtml(it.title)}</b><span class="hint">${escapeHtml(it.desc)}</span><a href="${safeUrl(it.url)}" target="_blank" rel="noopener noreferrer">باز کردن ↗</a>`;box.append(card)}
-  bubble.append(box);
+async function sendMessage(prefill){
+ if(state.busy)return;const input=$("promptInput");const text=(prefill??input.value).trim();if(!text&&!state.imageData)return;
+ if(!state.apiKey){openSettings();toast("اول کلید API رو در تنظیمات وارد کن.",true);return;}
+ const imageData=state.imageData;
+ const userText=text||(imageData?"این تصویر رو بررسی و توصیف کن.":"");
+ if(!state.activeHistory)state.activeHistory={title:"گفت‌وگوی جدید",messages:[],updated:Date.now()};
+ appendMessage("user",userText+(imageData?"\n\n[تصویر پیوست شد]":""),true);
+ input.value="";resizeInput();state.busy=true;$("sendButton").disabled=true;setConnection("online","در حال دریافت پاسخ");const typing=showTyping();
+ try{
+   const messages=[{role:"system",content:"تو جارویس هستی؛ یک دستیار دقیق، صمیمی و مسئولیت‌پذیر. به فارسی روان پاسخ بده مگر کاربر زبان دیگری بخواهد. اگر مطمئن نیستی شفاف بگو. کد را در بلوک کد ارائه کن. ادعای انجام کار یا جست‌وجویی که واقعاً انجام نداده‌ای نکن."},...state.activeHistory.messages.filter(m=>m.role==="user"||m.role==="assistant").slice(-20)];
+   const answer=await apiRequest(messages,imageData);typing.remove();appendMessage("assistant",answer,true);setConnection("online","اتصال آماده است");
+ }catch(err){typing.remove();appendMessage("assistant",`**خطا در اتصال به هوش مصنوعی**\n\n${err.message||"خطای ناشناخته"}\n\nتنظیمات API رو بررسی کن و دوباره تلاش کن.`,false);setConnection("error","خطا در اتصال");toast(err.message||"اتصال ناموفق بود.",true);}
+ finally{state.busy=false;$("sendButton").disabled=false;clearImage();}
 }
-function systemPrompt(){
-  const name=localSettings.displayName||"دوست من";
-  const tone={balanced:"friendly and clear",professional:"professional and precise",concise:"concise and direct",warm:"warm and supportive"}[localSettings.tone||"balanced"];
-  const thinking=localSettings.thinking||"medium";
-  return `You are JARVIS 3.5, a capable Persian-first personal assistant. User's preferred name is ${name}. Tone: ${tone}. Thinking mode: ${thinking}. Reply in the user's language, normally Persian. Be honest about tool limits and never claim to have performed an action unless the browser actually performed it. You cannot access arbitrary apps, messages, contacts, microphone in background, or phone internals from a website. Ask confirmation before consequential actions. When asked to search, summarize from your own knowledge if suitable and also provide search links when current verification is needed. Do not invent sources. The app can show search shortcuts separately.`;
+function resizeInput(){const el=$("promptInput");el.style.height="auto";el.style.height=Math.min(el.scrollHeight,180)+"px";}
+function clearImage(){state.image=null;state.imageData=null;$("attachmentPreview").hidden=true;$("attachmentPreview").replaceChildren();}
+async function addImage(file){
+ if(!file)return;if(!file.type.startsWith("image/")){toast("لطفاً یک فایل تصویر انتخاب کن.",true);return;}if(file.size>8*1024*1024){toast("حجم تصویر باید کمتر از ۸ مگابایت باشه.",true);return;}
+ const base64=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(",")[1]);reader.onerror=reject;reader.readAsDataURL(file);});
+ state.image=file;state.imageData={mimeType:file.type,base64};const preview=$("attachmentPreview");preview.replaceChildren();const img=document.createElement("img");img.src=URL.createObjectURL(file);img.alt="پیش‌نمایش تصویر";const name=document.createElement("span");name.textContent=file.name;const remove=document.createElement("button");remove.textContent="حذف تصویر";remove.addEventListener("click",clearImage);preview.append(img,name,remove);preview.hidden=false;
 }
-function getProviderConfig(provider,keyObj){
-  if(provider==="groq")return {url:"https://api.groq.com/openai/v1/chat/completions",key:keyObj.key,model:keyObj.model||localSettings.modelName||"llama-3.3-70b-versatile",kind:"openai"};
-  if(provider==="custom")return {url:(localSettings.customBase||"").replace(/\/+$/,"")+"/chat/completions",key:keyObj.key,model:keyObj.model||localSettings.modelName,kind:"openai"};
-  return {url:"https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(keyObj.model||localSettings.modelName||"gemini-2.0-flash")+":generateContent?key="+encodeURIComponent(keyObj.key),key:keyObj.key,model:keyObj.model||localSettings.modelName||"gemini-2.0-flash",kind:"gemini"};
+async function testConnection(){
+ saveSettings();$("apiTestResult").className="test-result";$("apiTestResult").textContent="در حال آزمایش اتصال…";
+ try{const answer=await apiRequest([{role:"user",content:"فقط بنویس: اتصال موفق است."}],null);$("apiTestResult").textContent="اتصال موفق است: "+answer.slice(0,90);setConnection("online","اتصال آماده است");toast("اتصال API با موفقیت آزمایش شد.");}
+ catch(e){$("apiTestResult").className="test-result error";$("apiTestResult").textContent=e.message||"آزمایش اتصال ناموفق بود.";setConnection("error","خطا در اتصال");}
 }
-async function callProvider(provider,keyObj,messages){
-  const cfg=getProviderConfig(provider,keyObj);
-  if(!cfg.key)throw new Error("API key is empty");
-  const thinking=localSettings.thinking||"medium";
-  if(cfg.kind==="gemini"){
-    const contents=messages.filter(m=>m.role!=="system").map(m=>({role:m.role==="assistant"?"model":"user",parts:[{text:m.content}]}));
-    const body={systemInstruction:{parts:[{text:systemPrompt()}]},contents,generationConfig:{temperature:thinking==="low"?0.5:thinking==="high"?0.8:0.65,maxOutputTokens:thinking==="low"?700:thinking==="high"?3500:1800}};
-    const res=await fetch(cfg.url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
-    const data=await res.json();if(!res.ok)throw new Error(data.error?.message||`HTTP ${res.status}`);
-    const text=data.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("")||"پاسخی دریافت نشد.";
-    return text;
-  }
-  if(!cfg.url.startsWith("https://"))throw new Error("Custom API Base URL باید با https:// شروع شود");
-  const body={model:cfg.model,messages:[{role:"system",content:systemPrompt()},...messages.filter(m=>m.role!=="system").map(m=>({role:m.role,content:m.content}))],temperature:thinking==="low"?0.4:thinking==="high"?0.8:0.65,max_tokens:thinking==="low"?700:thinking==="high"?3500:1800};
-  const res=await fetch(cfg.url,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+cfg.key},body:JSON.stringify(body)});
-  const data=await res.json();if(!res.ok)throw new Error(data.error?.message||`HTTP ${res.status}`);
-  return data.choices?.[0]?.message?.content||"پاسخی دریافت نشد.";
+function startNewChat(){state.activeHistory=null;$("messages").replaceChildren();$("welcome").hidden=false;$("promptInput").value="";clearImage();$("sidebar").classList.remove("open");document.querySelectorAll(".nav-item").forEach(n=>n.classList.toggle("active",n.dataset.view==="chat"));}
+async function signInGoogle(){
+ if(!state.auth){toast("اتصال Firebase آماده نشد؛ تنظیمات Firebase رو بررسی کن.",true);return;}
+ try{await signInWithPopup(state.auth,new GoogleAuthProvider());toast("ورود با Google موفق بود.");}
+ catch(e){const msg=e.code==="auth/unauthorized-domain"?"این دامنه هنوز در Firebase → Authentication → Settings → Authorized domains مجاز نیست.":e.code==="auth/popup-blocked"?"مرورگر پنجره ورود رو مسدود کرده؛ اجازه Popup رو فعال کن.":e.message||"ورود ناموفق بود.";toast(msg,true);}
 }
-async function askAI(userText){
-  const preferred=localSettings.provider||"groq";
-  const order=[preferred,...["groq","gemini","custom"].filter(p=>p!==preferred)];
-  const errors=[];
-  for(const provider of order){
-    const keys=getKeys(provider).filter(k=>k.key?.trim());
-    for(let i=0;i<keys.length;i++){
-      setActivity("Forwarder API",`بررسی ${provider.toUpperCase()} · API ${i+1} از ${keys.length}`);
-      try{
-        const text=await callProvider(provider,keys[i],currentMessages);
-        localSettings.lastProvider=provider;localSettings.lastKeyIndex=i;saveLocalSettings();
-        return {text,provider,index:i};
-      }catch(err){errors.push(`${provider} API ${i+1}: ${err.message}`)}
-    }
-  }
-  throw new Error(errors.length?("تمام مسیرهای API ناموفق بودند:\n"+errors.slice(0,5).join("\n")):"هیچ API Key ثبت نشده است. از تنظیمات، کلید Groq یا Gemini یا API آزاد اضافه کن.");
+function setupVoice(){
+ const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!SpeechRecognition){$("micButton").addEventListener("click",()=>toast("ورودی صوتی در این مرورگر پشتیبانی نمی‌شه. از Chrome به‌روز استفاده کن.",true));return;}
+ let rec=null;
+ $("micButton").addEventListener("click",()=>{
+  if(rec){try{rec.stop()}catch{}return;}
+  rec=new SpeechRecognition();rec.lang="fa-IR";rec.interimResults=true;rec.continuous=false;$("micButton").classList.add("recording");$("micButton").setAttribute("aria-label","توقف ورودی صوتی");
+  rec.onresult=e=>{let s="";for(let i=e.resultIndex;i<e.results.length;i++)s+=e.results[i][0].transcript;$("promptInput").value=s;resizeInput();};
+  rec.onerror=e=>toast(e.error==="not-allowed"?"اجازه میکروفون داده نشده. از تنظیمات سایت اجازه بده.":"تشخیص صدا با خطا روبه‌رو شد.",true);
+  rec.onend=()=>{$("micButton").classList.remove("recording");$("micButton").setAttribute("aria-label","شروع ورودی صوتی");rec=null;};try{rec.start()}catch{rec=null;$("micButton").classList.remove("recording");}
+ });
 }
-async function sendPrompt(text){
-  text=text.trim();if(!text&&!pendingImage)return;
-  if(!currentUser){toast("ابتدا با Google وارد شو");return}
-  if(!text)text="لطفاً تصویر پیوست‌شده را بررسی کن.";
-  const imageData=pendingImage;
-  addMessage("user",text,{image:imageData});
-  currentMessages.push({role:"user",content:text});
-  const prompt=$("promptInput");prompt.value="";prompt.style.height="auto";
-  pendingImage=null;$("imagePreview").classList.add("hidden");$("imagePreview").innerHTML="";
-  const bubble=addMessage("assistant","").querySelector?.(".bubble");
-  // addMessage returns bubble; handle it directly
-  let answerBubble=$("messages").lastElementChild?.querySelector(".bubble");
-  try{
-    if(isSearchIntent(text)){
-      setActivity("جست‌وجوی وب","ساخت لینک‌های جست‌وجو و تصاویر");
-      answerBubble.innerHTML=markdownLite("برای اینکه نتیجه‌ی زنده و قابل بررسی ببینی، این مسیرهای جست‌وجو را آماده کردم:");
-      appendSearchCards(answerBubble,text);
-    }
-    setActivity("پردازش درخواست","ارسال به مدل هوش مصنوعی");
-    const result=await askAI(text);
-    answerBubble.innerHTML=markdownLite(result.text);
-    if(isSearchIntent(text))appendSearchCards(answerBubble,text);
-    currentMessages.push({role:"assistant",content:result.text});
-    if(localSettings.speechEnabled)speak(result.text);
-    await persistChat(text,result.text);
-  }catch(err){
-    answerBubble.textContent="جارویس نتوانست درخواست را کامل کند.\n"+err.message+"\n\nتنظیمات API را بررسی کن.";
-    toast("خطا در پردازش API");
-  }finally{hideActivity();$("chatPanel").scrollTop=$("chatPanel").scrollHeight}
+function initFirebase(){
+ try{
+  if(!firebaseConfig.apiKey||firebaseConfig.apiKey.startsWith("YOUR_"))throw new Error("Firebase config ناقصه");
+  const app=initializeApp(firebaseConfig);state.auth=getAuth(app);
+  onAuthStateChanged(state.auth,user=>{state.user=user;updateAccountUI();});
+ }catch(e){console.warn("Firebase init:",e.message);updateAccountUI();}
 }
-function isSearchIntent(t){return /(سرچ|جست.?وجو|پیدا کن|بگرد|عکس|تصویر|چیست|چیه|قیمت امروز|آخرین اخبار|what is|search|find|images?)/i.test(t)}
-async function persistChat(userText,assistantText){
-  if(!localSettings.memoryEnabled||!db||!currentUser)return;
-  try{
-    if(!activeChatId){activeChatId=newId();await setDoc(doc(db,"users",currentUser.uid,"chats",activeChatId),{title:userText.slice(0,55),createdAt:serverTimestamp(),updatedAt:serverTimestamp()})}
-    await setDoc(doc(db,"users",currentUser.uid,"chats",activeChatId),{messages:currentMessages,updatedAt:serverTimestamp()},{merge:true});
-    await loadHistory();
-  }catch(e){console.warn("Memory persistence failed",e)}
-}
-async function loadHistory(){
-  if(!db||!currentUser)return;
-  try{
-    const q=query(collection(db,"users",currentUser.uid,"chats"),orderBy("updatedAt","desc"),limit(30));const snap=await getDocs(q);
-    const wrap=$("historyList");wrap.innerHTML="";
-    if(snap.empty){wrap.innerHTML='<p class="empty-note">گفتگویی ندارید.</p>';return}
-    snap.forEach(d=>{const data=d.data();const b=document.createElement("button");b.className="history-item";b.textContent=data.title||"گفتگوی جدید";b.onclick=()=>openChat(d.id,data);wrap.append(b)});
-  }catch(e){console.warn("History unavailable",e)}
-}
-function openChat(id,data){activeChatId=id;currentMessages=Array.isArray(data.messages)?data.messages:[];$("messages").innerHTML="";$("welcome").classList.toggle("hidden",currentMessages.length>0);currentMessages.forEach(m=>addMessage(m.role==="assistant"?"assistant":"user",m.content));$("sidebar").classList.remove("open");}
-async function loadAdminPanel(){
-  const content=$("adminContent");content.innerHTML="";
-  if(!isAdmin()){content.textContent="دسترسی مجاز نیست.";return}
-  const cards=document.createElement("div");cards.className="suggestion-grid";
-  cards.innerHTML='<div class="search-card"><small>ADMIN</small><h3>فعال</h3><span class="hint">حساب مدیر تأیید شد</span></div><div class="search-card"><small>USER</small><h3>۱</h3><span class="hint">کاربر فعلی</span></div>';
-  content.append(cards);
-  $("userTable").innerHTML='<p class="hint">برای نمایش امن همه کاربران، Cloud Function یا بک‌اند دارای دسترسی Admin SDK لازم است. از کلاینت عمومی نمی‌توان فهرست همه ایمیل‌ها را امن و کامل خواند.</p>';
-}
-function speak(text){if(!("speechSynthesis" in window))return;window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text.slice(0,1800));u.lang="fa-IR";u.rate=1.02;window.speechSynthesis.speak(u)}
-function startRecognition(){
-  if(localSettings.voiceEnabled===false){toast("تشخیص گفتار خاموش است");return}
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){toast("این مرورگر از تشخیص گفتار پشتیبانی نمی‌کند");return}
-  const rec=new SR();rec.lang="fa-IR";rec.interimResults=false;rec.maxAlternatives=1;
-  rec.onstart=()=>{toast("در حال گوش‌دادن…");$("voiceToggle").classList.add("listening")};
-  rec.onend=()=>$("voiceToggle").classList.remove("listening");
-  rec.onerror=()=>toast("تشخیص گفتار متوقف شد");
-  rec.onresult=e=>{const text=e.results[0][0].transcript;$("promptInput").value=text;handleLocalCommand(text)};
-  rec.start();
-}
-function handleLocalCommand(text){
-  const t=text.toLowerCase().trim();
-  if(/^(هی|hey|hi)\s*جارویس/.test(t)){speak(`بله ${localSettings.displayName||"دوست من"}؟`);return}
-  const appMap=[[/اینستا|ایستا|instagram/,"instagram"],[/یوتیوب|youtube/,"youtube"],[/گوگل|google/,"google"],[/واتساپ|whatsapp/,"whatsapp"]];
-  for(const [re,app] of appMap){if(re.test(t)&&/باز کن|برو|open/.test(t)){const urls={instagram:"https://www.instagram.com/",youtube:"https://www.youtube.com/",google:"https://www.google.com/",whatsapp:"https://web.whatsapp.com/"};toast("بازکردن "+app);window.open(urls[app],"_blank","noopener");$("promptInput").value="";return}}
-}
-async function initFirebase(){
-  if(!firebaseConfig||!firebaseConfig.apiKey||firebaseConfig.apiKey==="YOUR_FIREBASE_API_KEY"){throw new Error("Firebase config تنظیم نشده؛ firebase-config.js را تکمیل کن.")}
-  const app=initializeApp(firebaseConfig);auth=getAuth(app);db=getFirestore(app);
-  $("googleLogin").onclick=async()=>{
-    $("authError").textContent="";
-    try{const provider=new GoogleAuthProvider();provider.setCustomParameters({prompt:"select_account"});await signInWithPopup(auth,provider)}
-    catch(e){if(["auth/popup-blocked","auth/operation-not-supported-in-this-environment"].includes(e.code)){try{await signInWithRedirect(auth,new GoogleAuthProvider())}catch(err){$("authError").textContent=err.message}}else $("authError").textContent=e.message}
-  };
-  await getRedirectResult(auth).catch(()=>{});
-  onAuthStateChanged(auth,async user=>{
-    currentUser=user;
-    if(!user){$("authScreen").classList.remove("hidden");$("app").classList.add("hidden");return}
-    $("authScreen").classList.add("hidden");$("app").classList.remove("hidden");
-    $("userName").textContent=user.displayName||localSettings.displayName||"کاربر";$("userEmail").textContent=user.email||"";$("userAvatar").src=user.photoURL||"";
-    $("adminNav").classList.toggle("hidden",!isAdmin());
-    try{await setDoc(doc(db,"users",user.uid),{email:user.email||"",displayName:user.displayName||"",photoURL:user.photoURL||"",lastSeen:serverTimestamp()},{merge:true})}catch(e){console.warn("User profile not saved",e)}
-    await loadHistory();
-  });
-}
-function bindUI(){
-  $("composer").addEventListener("submit",e=>{e.preventDefault();sendPrompt($("promptInput").value)});
-  $("promptInput").addEventListener("input",e=>{e.target.style.height="auto";e.target.style.height=Math.min(e.target.scrollHeight,160)+"px"});
-  $("promptInput").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();$("composer").requestSubmit()}});
-  $("newChat").onclick=()=>{activeChatId=null;currentMessages=[];$("messages").innerHTML="";$("welcome").classList.remove("hidden");$("sidebar").classList.remove("open")};
-  document.querySelectorAll("[data-panel]").forEach(b=>b.addEventListener("click",()=>showPanel(b.dataset.panel)));
-  document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>showPanel(""));
-  document.querySelectorAll(".add-key").forEach(b=>b.onclick=()=>addKey(b.dataset.provider));
-  $("saveSettings").onclick=saveSettings;
-  $("logout").onclick=()=>signOut(auth);
-  $("voiceToggle").onclick=startRecognition;$("micBtn").onclick=startRecognition;
-  $("openSidebar").onclick=()=>$("sidebar").classList.add("open");$("closeSidebar").onclick=()=>$("sidebar").classList.remove("open");
-  document.querySelectorAll(".suggestion").forEach(b=>b.onclick=()=>sendPrompt(b.dataset.prompt));
-  $("attachBtn").onclick=()=>$("fileInput").click();
-  $("fileInput").onchange=async e=>{const f=e.target.files?.[0];if(!f)return;if(f.size>5*1024*1024){toast("حداکثر اندازه تصویر ۵ مگابایت است");return}pendingImage=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(f)});$("imagePreview").innerHTML=`<img src="${pendingImage}" alt="پیش‌نمایش"><button class="icon-btn" type="button" id="removeImage">×</button>`;$("imagePreview").classList.remove("hidden");$("removeImage").onclick=()=>{pendingImage=null;$("imagePreview").classList.add("hidden")};toast("تصویر اضافه شد؛ توجه: این نسخه تصویر را به مدل ارسال نمی‌کند، فقط پیش‌نمایش می‌دهد.")};
-  $("clearLocal").onclick=()=>{if(confirm("کلیدهای API ذخیره‌شده در این مرورگر پاک شوند؟")){localSettings.keys={};saveLocalSettings();renderKeys();toast("کلیدها پاک شدند")}};
-  $("displayName").addEventListener("change",()=>{localSettings.displayName=$("displayName").value.trim();saveLocalSettings()});
-}
-bindUI();
-initFirebase().catch(err=>{$("authScreen").classList.remove("hidden");$("authError").textContent=err.message;console.error(err)});
+$("sendButton").addEventListener("click",()=>sendMessage());
+$("promptInput").addEventListener("input",resizeInput);
+$("promptInput").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();}});
+$("newChat").addEventListener("click",startNewChat);
+$("topSettings").addEventListener("click",openSettings);$("navSettings")?.addEventListener("click",openSettings);
+$("closeSettings").addEventListener("click",closeSettings);$("doneSettings").addEventListener("click",closeSettings);
+$("settingsOverlay").addEventListener("click",e=>{if(e.target===$("settingsOverlay"))closeSettings();});
+$("providerSelect").addEventListener("change",()=>{if(!$("modelInput").value.trim()||Object.values(defaults).includes($("modelInput").value.trim()))$("modelInput").value=defaults[$("providerSelect").value];});
+$("toggleKey").addEventListener("click",()=>{$("apiKeyInput").type=$("apiKeyInput").type==="password"?"text":"password";});
+$("saveSettings").addEventListener("click",testConnection);
+$("attachButton").addEventListener("click",()=>$("imageInput").click());
+$("imageInput").addEventListener("change",e=>addImage(e.target.files?.[0]));
+$("clearHistory").addEventListener("click",()=>{if(confirm("همه تاریخچه‌های ذخیره‌شده روی این دستگاه پاک بشن؟")){state.history=[];localStorage.removeItem("jarvis_history");renderHistory();toast("تاریخچه پاک شد.");}});
+$("googleSignIn").addEventListener("click",signInGoogle);
+$("accountButton").addEventListener("click",()=>state.user?openSettings():openSettings());
+$("signOutButton").addEventListener("click",async()=>{try{await signOut(state.auth);toast("از حساب خارج شدی.");}catch(e){toast(e.message,true);}});
+$("menuToggle").addEventListener("click",()=>$("sidebar").classList.add("open"));$("closeSidebar").addEventListener("click",()=>$("sidebar").classList.remove("open"));
+document.querySelectorAll(".suggestion-card").forEach(b=>b.addEventListener("click",()=>sendMessage(b.dataset.prompt)));
+document.querySelectorAll(".nav-item").forEach(b=>b.addEventListener("click",()=>{if(b.dataset.view==="settings"){openSettings();return;}if(b.dataset.view==="history"&&state.history.length){loadHistory(0);return;}document.querySelectorAll(".nav-item").forEach(n=>n.classList.toggle("active",n===b));$("sidebar").classList.remove("open");}));
+document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();startNewChat();}if(e.key==="Escape"){closeSettings();$("sidebar").classList.remove("open");}});
+initFirebase();setupVoice();renderHistory();updateModelLabel();updateAccountUI();if(state.apiKey)setConnection("online","کلید API ذخیره شده");if(!state.model)$("modelInput").value=defaults[state.provider];

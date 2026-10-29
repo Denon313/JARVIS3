@@ -2,116 +2,118 @@
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#090d16">
-  <meta name="description" content="JARVIS 3.5 — دستیار هوشمند شخصی">
-  <title>JARVIS 3.5</title>
-  <link rel="manifest" href="./manifest.webmanifest">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#090b10">
+  <meta name="description" content="Jarvis — دستیار هوشمند شخصی">
+  <title>JARVIS — Personal Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles.css">
+  <link rel="manifest" href="./manifest.webmanifest">
 </head>
 <body>
-  <div class="ambient ambient-a"></div><div class="ambient ambient-b"></div>
-  <div id="authScreen" class="auth-screen">
-    <div class="auth-card glass">
-      <div class="brand-mark">J<span>•</span></div>
-      <p class="eyebrow">PERSONAL INTELLIGENCE SYSTEM</p>
-      <h1>JARVIS <span>3.5</span></h1>
-      <p class="muted">دستیار شخصی تو؛ با حافظه، صدا و ابزارهای هوشمند.</p>
-      <button id="googleLogin" class="btn btn-primary google-btn"><span class="google-g">G</span> ورود با حساب Google</button>
-      <p id="authError" class="error-text"></p>
-      <p class="tiny muted">ورود امن با Google از طریق Firebase Authentication</p>
-    </div>
-  </div>
-
-  <div id="app" class="app-shell hidden">
-    <aside id="sidebar" class="sidebar glass">
-      <div class="sidebar-top">
-        <div class="brand-row"><div class="mini-mark">J</div><div><b>JARVIS</b><small>VERSION 3.5</small></div></div>
-        <button id="closeSidebar" class="icon-btn mobile-only" aria-label="بستن">×</button>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 48 48"><path d="M24 5 42 15.5v17L24 43 6 32.5v-17L24 5Z"/><path d="M15 29V19l9-5 9 5v10l-9 5-9-5Z"/><path d="M24 14v20M15 19l18 10M33 19 15 29"/></svg>
+        </div>
+        <div><div class="brand-name">JARVIS<span>®</span></div><div class="brand-caption">PERSONAL INTELLIGENCE</div></div>
+        <button class="icon-button mobile-close" id="closeSidebar" aria-label="بستن منو" title="بستن منو"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
       </div>
-      <button id="newChat" class="btn btn-soft new-chat"><span>＋</span> گفتگوی جدید</button>
-      <div class="side-label">گفتگوهای اخیر</div>
-      <div id="historyList" class="history-list"><p class="empty-note">گفتگویی ندارید.</p></div>
+
+      <button class="new-chat" id="newChat"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>گفت‌وگوی جدید</span><kbd>⌘ K</kbd></button>
+      <div class="side-label">فضای کاری</div>
+      <nav class="side-nav">
+        <button class="nav-item active" data-view="chat"><svg viewBox="0 0 24 24"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H5l-1 2v-6.5A7.5 7.5 0 1 1 20 11.5Z"/></svg><span>دستیار هوشمند</span></button>
+        <button class="nav-item" data-view="history"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><path d="M3 3v5h5M12 7v5l4 2"/></svg><span>تاریخچه گفتگو</span></button>
+        <button class="nav-item" data-view="settings"><svg viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/><path d="m19.4 15 .1.1 1.1.9-1.5 2.6-1.4-.5a7.8 7.8 0 0 1-1.6.9l-.3 1.5h-3l-.3-1.5a7.8 7.8 0 0 1-1.6-.9l-1.4.5L6 16l1.1-.9a7.5 7.5 0 0 1 0-1.8L6 12.4l1.5-2.6 1.4.5a7.8 7.8 0 0 1 1.6-.9l.3-1.5h3l.3 1.5a7.8 7.8 0 0 1 1.6.9l1.4-.5 1.5 2.6-1.1.9a7.5 7.5 0 0 1 0 1.7Z"/></svg><span>تنظیمات و API</span></button>
+      </nav>
+      <div class="side-label history-label">گفتگوهای اخیر <button id="clearHistory" class="text-button">پاک‌سازی</button></div>
+      <div id="historyList" class="history-list"></div>
       <div class="sidebar-bottom">
-        <button class="nav-item" data-panel="settings"><span>⚙</span> تنظیمات</button>
-        <button class="nav-item hidden" id="adminNav" data-panel="admin"><span>◈</span> پنل مدیریت</button>
-        <div class="profile-row"><img id="userAvatar" alt="" src=""><div class="profile-meta"><b id="userName">کاربر</b><small id="userEmail"></small></div><button id="logout" class="icon-btn" title="خروج">↪</button></div>
+        <div class="connection-row"><span class="status-dot" id="statusDot"></span><span id="connectionText">آماده اتصال</span></div>
+        <button class="profile-row" id="accountButton">
+          <div class="avatar" id="userAvatar">J</div>
+          <div class="profile-copy"><strong id="accountName">حساب مهمان</strong><small id="accountHint">ورود برای همگام‌سازی</small></div>
+          <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
       </div>
     </aside>
 
-    <main class="main-area">
+    <main class="main-panel">
       <header class="topbar">
-        <button id="openSidebar" class="icon-btn mobile-only" aria-label="منو">☰</button>
-        <div class="top-brand"><span class="status-dot"></span><span>JARVIS <b>3.5</b></span><small id="topStatus">آماده به کار</small></div>
-        <div class="top-actions"><button id="voiceToggle" class="icon-btn" title="فرمان صوتی">🎙</button><button class="icon-btn" data-panel="settings" title="تنظیمات">⚙</button></div>
+        <button class="icon-button menu-toggle" id="menuToggle" aria-label="باز کردن منو"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+        <div class="topbar-context"><span class="eyebrow">PERSONAL AI / 04.0</span><span class="topbar-title">دستیار شخصی</span></div>
+        <div class="topbar-actions">
+          <div class="model-chip"><span class="pulse"></span><span id="activeModelLabel">مدل تنظیم نشده</span></div>
+          <button class="icon-button" id="topSettings" aria-label="تنظیمات" title="تنظیمات"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="m19.4 15 .1.1 1.1.9-1.5 2.6-1.4-.5a7.8 7.8 0 0 1-1.6.9l-.3 1.5h-3l-.3-1.5a7.8 7.8 0 0 1-1.6-.9l-1.4.5L6 16l1.1-.9a7.5 7.5 0 0 1 0-1.8L6 12.4l1.5-2.6 1.4.5a7.8 7.8 0 0 1 1.6-.9l.3-1.5h3l.3 1.5a7.8 7.8 0 0 1 1.6.9l1.4-.5 1.5 2.6-1.1.9a7.5 7.5 0 0 1 0 1.7Z"/></svg></button>
+        </div>
       </header>
 
-      <section id="chatPanel" class="chat-panel">
-        <div id="welcome" class="welcome">
-          <div class="hero-orb"><div class="orb-core"></div><span class="orb-ring ring-one"></span><span class="orb-ring ring-two"></span><span class="orb-ring ring-three"></span></div>
-          <p class="eyebrow">YOUR PERSONAL AI</p>
-          <h2>در خدمتم<span class="accent">.</span></h2>
-          <p class="muted">من از کجا شروع کنیم؟</p>
+      <section class="chat-stage" id="chatStage">
+        <div class="welcome" id="welcome">
+          <div class="welcome-orb">
+            <div class="orb-ring ring-one"></div><div class="orb-ring ring-two"></div>
+            <div class="orb-core"><svg viewBox="0 0 48 48"><path d="M24 5 42 15.5v17L24 43 6 32.5v-17L24 5Z"/><path d="M15 29V19l9-5 9 5v10l-9 5-9-5Z"/><path d="M24 14v20"/></svg></div>
+          </div>
+          <div class="welcome-kicker"><span></span> سیستم هوشمند شخصی تو</div>
+          <h1>سلام، من <span>جارویس</span> هستم.</h1>
+          <p>از ایده تا اجرا، کنارت هستم. بگو امروز چه چیزی رو با هم جلو ببریم؟</p>
           <div class="suggestion-grid">
-            <button class="suggestion" data-prompt="امروز چه تاریخی است؟"><span>◷</span><b>تاریخ امروز</b><small>تقویم و زمان</small></button>
-            <button class="suggestion" data-prompt="درباره هوش مصنوعی به زبان ساده توضیح بده."><span>✧</span><b>یادگیری</b><small>موضوعی را کشف کنیم</small></button>
-            <button class="suggestion" data-prompt="برای امروز یک برنامه ساده و کاربردی پیشنهاد بده."><span>▦</span><b>برنامه‌ریزی</b><small>روزت را مرتب کن</small></button>
-            <button class="suggestion" data-prompt="پاستا چیست؟ همراه با منابع تصویری و لینک‌های مفید توضیح بده."><span>⌕</span><b>جست‌وجو</b><small>پاسخ و منابع</small></button>
+            <button class="suggestion-card" data-prompt="یک ایده خلاقانه برای ساخت یک محصول دیجیتال پیشنهاد بده و مرحله‌به‌مرحله اعتبارسنجی‌اش کن."><span class="suggestion-icon"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 22h4M8.5 14.5A7 7 0 1 1 15.5 14.5c-.9.7-1.5 1.5-1.5 2.5h-4c0-1-.6-1.8-1.5-2.5Z"/></svg></span><strong>ایده‌پردازی</strong><small>ایده‌ها رو به برنامه تبدیل کن</small><svg class="suggestion-arrow" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+            <button class="suggestion-card" data-prompt="این کد رو بررسی کن، ایرادهاش رو پیدا کن و نسخه اصلاح‌شده کامل ارائه بده."><span class="suggestion-icon"><svg viewBox="0 0 24 24"><path d="m8 8-4 4 4 4M16 8l4 4-4 4M14 4l-4 16"/></svg></span><strong>برنامه‌نویسی</strong><small>کدنویسی و رفع خطا</small><svg class="suggestion-arrow" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+            <button class="suggestion-card" data-prompt="برای یک موضوع پیچیده، توضیح دقیق و ساده همراه با مثال‌های کاربردی بده."><span class="suggestion-icon"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6 5.6 18.4"/></svg></span><strong>یادگیری</strong><small>موضوعات سخت، ساده و روشن</small><svg class="suggestion-arrow" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+            <button class="suggestion-card" data-prompt="به من کمک کن برای امروز یک برنامه واقع‌بینانه با اولویت‌های مشخص بسازم."><span class="suggestion-icon"><svg viewBox="0 0 24 24"><path d="M8 3v4M16 3v4M4 9h16M5 5h14a1 1 0 0 1 1 1v13H4V6a1 1 0 0 1 1-1Z"/><path d="m8 14 2 2 5-5"/></svg></span><strong>برنامه‌ریزی</strong><small>تمرکز روی کارهای مهم</small><svg class="suggestion-arrow" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
           </div>
         </div>
-        <div id="messages" class="messages"></div>
-        <div id="activity" class="activity hidden"><div class="activity-orb"><i></i><i></i><i></i></div><div><b id="activityTitle">در حال پردازش</b><small id="activityDetail">آماده‌سازی درخواست…</small></div><span class="activity-pulse"></span></div>
+        <div class="messages" id="messages" aria-live="polite"></div>
       </section>
 
-      <div class="composer-wrap">
-        <div id="imagePreview" class="image-preview hidden"></div>
-        <form id="composer" class="composer glass">
-          <button type="button" id="attachBtn" class="icon-btn composer-tool" title="افزودن تصویر">＋</button>
-          <input type="file" id="fileInput" accept="image/*" hidden>
-          <textarea id="promptInput" rows="1" placeholder="برای جارویس پیام بنویس..." aria-label="پیام"></textarea>
-          <button type="button" id="micBtn" class="icon-btn composer-tool" title="گفتار به متن">🎙</button>
-          <button type="submit" id="sendBtn" class="send-btn" aria-label="ارسال">↑</button>
-        </form>
-        <div class="composer-foot"><span><i class="tiny-dot"></i> پاسخ‌ها ممکن است نیاز به بررسی داشته باشند</span><span>JARVIS 3.5 · Secure by design</span></div>
-      </div>
+      <footer class="composer-wrap">
+        <div class="attachment-preview" id="attachmentPreview" hidden></div>
+        <div class="composer" id="composer">
+          <button class="composer-tool" id="attachButton" aria-label="افزودن تصویر" title="افزودن تصویر"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></button>
+          <input id="imageInput" type="file" accept="image/*" hidden>
+          <textarea id="promptInput" rows="1" placeholder="پیامت رو برای جارویس بنویس..." aria-label="پیام"></textarea>
+          <button class="composer-tool mic-button" id="micButton" aria-label="شروع ورودی صوتی" title="ورودی صوتی"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6"/></svg></button>
+          <button class="send-button" id="sendButton" aria-label="ارسال پیام" title="ارسال پیام"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg></button>
+        </div>
+        <div class="composer-meta"><span>جارویس ممکنه اشتباه کنه؛ پاسخ‌های مهم رو بررسی کن.</span><span id="inputStatus">Enter برای ارسال · Shift + Enter برای خط جدید</span></div>
+      </footer>
     </main>
   </div>
 
-  <div id="settingsPanel" class="drawer hidden">
-    <div class="drawer-head"><div><p class="eyebrow">PERSONALIZE</p><h2>تنظیمات جارویس</h2></div><button class="icon-btn" data-close="settings">×</button></div>
-    <div class="drawer-content">
-      <section class="setting-section"><h3>هویت و رفتار</h3>
-        <label>نامی که جارویس صدایت می‌کند<input id="displayName" placeholder="مثلاً مهدی" maxlength="40"></label>
-        <label>سبک پاسخ<select id="tone"><option value="balanced">متعادل و دوستانه</option><option value="professional">رسمی و حرفه‌ای</option><option value="concise">کوتاه و مستقیم</option><option value="warm">صمیمی و گرم</option></select></label>
-        <label>سطح تفکر<select id="thinking"><option value="low">3.5 کم — پاسخ سریع‌تر و مصرف کمتر</option><option value="medium" selected>3.5 متوسط — تعادل کیفیت و مصرف</option><option value="high">3.5 زیاد — پردازش عمیق‌تر</option></select><small class="hint">سطح تفکر، در صورت پشتیبانی مدل، روی پارامترهای درخواست اثر می‌گذارد؛ اشتراک پولی در این نسخه پیاده‌سازی نشده است.</small></label>
-        <label class="toggle-row"><span><b>ذخیره حافظه گفتگو</b><small>ذخیره در فضای خصوصی Firebase</small></span><input id="memoryEnabled" type="checkbox" checked></label>
-      </section>
-      <section class="setting-section"><h3>مدیریت API</h3><p class="hint">کلیدها ذخیره‌شده در این مرورگر هستند. برای انتشار عمومی، از کلیدهای کم‌سهمیه استفاده کن؛ Firebase Rules از کلیدهای API محافظت نمی‌کند.</p>
-        <div class="api-group"><div class="api-group-head"><b>Groq</b><span class="api-badge">OpenAI-compatible</span></div><div id="groqKeys" class="key-list"></div><button class="btn btn-soft add-key" data-provider="groq">＋ افزودن API</button></div>
-        <div class="api-group"><div class="api-group-head"><b>Gemini</b><span class="api-badge">Google AI</span></div><div id="geminiKeys" class="key-list"></div><button class="btn btn-soft add-key" data-provider="gemini">＋ افزودن API</button></div>
-        <div class="api-group"><div class="api-group-head"><b>API آزاد</b><span class="api-badge">OpenAI-compatible</span></div><div id="customKeys" class="key-list"></div><button class="btn btn-soft add-key" data-provider="custom">＋ افزودن API</button></div>
-        <label>ارائه‌دهنده پیش‌فرض<select id="provider"><option value="groq">Groq</option><option value="gemini">Gemini</option><option value="custom">API آزاد</option></select></label>
-        <label>نام مدل (اختیاری)<input id="modelName" placeholder="مثلاً مدل پشتیبانی‌شده توسط سرویس"></label>
-        <label>Custom API Base URL<input id="customBase" placeholder="https://api.example.com/v1"></label>
-        <button id="saveSettings" class="btn btn-primary full-width">ذخیره تنظیمات</button>
-        <p id="settingsStatus" class="hint"></p>
-      </section>
-      <section class="setting-section"><h3>صدا و حریم خصوصی</h3>
-        <label class="toggle-row"><span><b>پاسخ صوتی</b><small>خواندن پاسخ با صدای دستگاه</small></span><input id="speechEnabled" type="checkbox"></label>
-        <label class="toggle-row"><span><b>تشخیص گفتار</b><small>نیازمند پشتیبانی مرورگر</small></span><input id="voiceEnabled" type="checkbox" checked></label>
-        <p class="hint">عبارت بیدارباش «هی جارویس» در نسخه وب فقط وقتی صفحه فعال است قابل شبیه‌سازی است؛ مرورگر معمولی نمی‌تواند بعد از بسته‌شدن صفحه، همیشه در پس‌زمینه گوش کند.</p>
-        <button id="clearLocal" class="btn btn-danger full-width">پاک‌کردن کلیدهای ذخیره‌شده در این مرورگر</button>
-      </section>
-    </div>
+  <div class="overlay" id="settingsOverlay" hidden>
+    <section class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <header class="settings-header"><div><span class="eyebrow">CONFIGURATION CENTER</span><h2 id="settingsTitle">تنظیمات جارویس</h2><p>ارائه‌دهنده هوش مصنوعی و ورود حساب رو تنظیم کن.</p></div><button class="icon-button" id="closeSettings" aria-label="بستن"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header>
+      <div class="settings-body">
+        <div class="settings-section">
+          <div class="section-heading"><span class="section-number">01</span><div><h3>موتور هوش مصنوعی</h3><p>یک ارائه‌دهنده رو انتخاب کن و کلید API خودت رو وارد کن.</p></div></div>
+          <label class="field-label" for="providerSelect">ارائه‌دهنده</label>
+          <select id="providerSelect" class="field"><option value="groq">Groq · سریع</option><option value="gemini">Google Gemini · تصویر و جست‌وجو</option></select>
+          <label class="field-label" for="apiKeyInput">کلید API</label>
+          <div class="key-field"><input id="apiKeyInput" class="field" type="password" autocomplete="off" placeholder="کلید API خودت را وارد کن"><button id="toggleKey" class="icon-button" aria-label="نمایش کلید"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+          <label class="field-label" for="modelInput">نام مدل (اختیاری)</label>
+          <input id="modelInput" class="field" placeholder="پیش‌فرض مناسب انتخاب می‌شود" autocomplete="off">
+          <label class="check-row"><input type="checkbox" id="webSearchToggle"><span><strong>جست‌وجوی وب در Gemini</strong><small>اگر مدل و API شما از Google Search grounding پشتیبانی کنند.</small></span></label>
+          <label class="check-row"><input type="checkbox" id="rememberKeyToggle"><span><strong>ذخیره کلید روی همین دستگاه</strong><small>روی دستگاه مشترک فعال نکن؛ کلید در مرورگر رمزنگاری نمی‌شود.</small></span></label>
+          <div class="notice"><svg viewBox="0 0 24 24"><path d="M12 3 22 20H2L12 3Z"/><path d="M12 9v5M12 17h.01"/></svg><span>این نسخه روی GitHub Pages اجرا می‌شود؛ کلید API در مرورگر استفاده می‌شود و برای سایت عمومی، بک‌اند امن از نظر امنیتی بهتر است.</span></div>
+          <button class="primary-button" id="saveSettings">ذخیره تنظیمات و آزمایش اتصال <svg viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg></button>
+          <p class="test-result" id="apiTestResult" role="status"></p>
+        </div>
+        <div class="settings-section">
+          <div class="section-heading"><span class="section-number">02</span><div><h3>حساب و همگام‌سازی</h3><p>برای ورود گوگل از Firebase استفاده می‌شود.</p></div></div>
+          <div class="account-card"><div class="google-mark">G</div><div class="account-card-copy"><strong id="settingsAccountName">حساب مهمان</strong><small id="settingsAccountHint">هنوز وارد نشده‌ای</small></div><button class="secondary-button" id="googleSignIn">ورود با Google</button></div>
+          <p class="muted-note">برای ورود، دامنه <code>denon313.github.io</code> باید در Firebase Authentication → Settings → Authorized domains ثبت شده باشد.</p>
+          <button class="danger-button" id="signOutButton" hidden>خروج از حساب</button>
+        </div>
+      </div>
+      <footer class="settings-footer"><span>JARVIS 4.0 · PERSONAL INTELLIGENCE</span><button class="text-button" id="doneSettings">بستن تنظیمات</button></footer>
+    </section>
   </div>
-
-  <div id="adminPanel" class="drawer hidden">
-    <div class="drawer-head"><div><p class="eyebrow">SYSTEM CONSOLE</p><h2>پنل مدیریت</h2></div><button class="icon-btn" data-close="admin">×</button></div>
-    <div class="drawer-content"><div id="adminContent"><p class="hint">در حال بارگذاری آمار…</p></div>
-      <section class="setting-section"><h3>کاربران ثبت‌شده</h3><p class="hint">نمایش ایمیل کاربران فقط با تنظیم صحیح Firebase Security Rules و دسترسی مدیریتی امن فعال می‌شود.</p><div id="userTable" class="user-table"></div></section>
-    </div>
-  </div>
-  <div id="toast" class="toast hidden"></div>
+  <div class="toast-region" id="toastRegion" aria-live="polite"></div>
   <script type="module" src="./app.js"></script>
 </body>
 </html>
