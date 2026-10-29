@@ -1,0 +1,11 @@
+{
+  "name": "JARVIS 3.5",
+  "short_name": "JARVIS",
+  "description": "Personal AI assistant",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#090d16",
+  "theme_color": "#090d16",
+  "dir": "rtl",
+  "lang": "fa"
+}

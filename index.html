@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#090d16">
+  <meta name="description" content="JARVIS 3.5 — دستیار هوشمند شخصی">
+  <title>JARVIS 3.5</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="ambient ambient-a"></div><div class="ambient ambient-b"></div>
+  <div id="authScreen" class="auth-screen">
+    <div class="auth-card glass">
+      <div class="brand-mark">J<span>•</span></div>
+      <p class="eyebrow">PERSONAL INTELLIGENCE SYSTEM</p>
+      <h1>JARVIS <span>3.5</span></h1>
+      <p class="muted">دستیار شخصی تو؛ با حافظه، صدا و ابزارهای هوشمند.</p>
+      <button id="googleLogin" class="btn btn-primary google-btn"><span class="google-g">G</span> ورود با حساب Google</button>
+      <p id="authError" class="error-text"></p>
+      <p class="tiny muted">ورود امن با Google از طریق Firebase Authentication</p>
+    </div>
+  </div>
+
+  <div id="app" class="app-shell hidden">
+    <aside id="sidebar" class="sidebar glass">
+      <div class="sidebar-top">
+        <div class="brand-row"><div class="mini-mark">J</div><div><b>JARVIS</b><small>VERSION 3.5</small></div></div>
+        <button id="closeSidebar" class="icon-btn mobile-only" aria-label="بستن">×</button>
+      </div>
+      <button id="newChat" class="btn btn-soft new-chat"><span>＋</span> گفتگوی جدید</button>
+      <div class="side-label">گفتگوهای اخیر</div>
+      <div id="historyList" class="history-list"><p class="empty-note">گفتگویی ندارید.</p></div>
+      <div class="sidebar-bottom">
+        <button class="nav-item" data-panel="settings"><span>⚙</span> تنظیمات</button>
+        <button class="nav-item hidden" id="adminNav" data-panel="admin"><span>◈</span> پنل مدیریت</button>
+        <div class="profile-row"><img id="userAvatar" alt="" src=""><div class="profile-meta"><b id="userName">کاربر</b><small id="userEmail"></small></div><button id="logout" class="icon-btn" title="خروج">↪</button></div>
+      </div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <button id="openSidebar" class="icon-btn mobile-only" aria-label="منو">☰</button>
+        <div class="top-brand"><span class="status-dot"></span><span>JARVIS <b>3.5</b></span><small id="topStatus">آماده به کار</small></div>
+        <div class="top-actions"><button id="voiceToggle" class="icon-btn" title="فرمان صوتی">🎙</button><button class="icon-btn" data-panel="settings" title="تنظیمات">⚙</button></div>
+      </header>
+
+      <section id="chatPanel" class="chat-panel">
+        <div id="welcome" class="welcome">
+          <div class="hero-orb"><div class="orb-core"></div><span class="orb-ring ring-one"></span><span class="orb-ring ring-two"></span><span class="orb-ring ring-three"></span></div>
+          <p class="eyebrow">YOUR PERSONAL AI</p>
+          <h2>در خدمتم<span class="accent">.</span></h2>
+          <p class="muted">من از کجا شروع کنیم؟</p>
+          <div class="suggestion-grid">
+            <button class="suggestion" data-prompt="امروز چه تاریخی است؟"><span>◷</span><b>تاریخ امروز</b><small>تقویم و زمان</small></button>
+            <button class="suggestion" data-prompt="درباره هوش مصنوعی به زبان ساده توضیح بده."><span>✧</span><b>یادگیری</b><small>موضوعی را کشف کنیم</small></button>
+            <button class="suggestion" data-prompt="برای امروز یک برنامه ساده و کاربردی پیشنهاد بده."><span>▦</span><b>برنامه‌ریزی</b><small>روزت را مرتب کن</small></button>
+            <button class="suggestion" data-prompt="پاستا چیست؟ همراه با منابع تصویری و لینک‌های مفید توضیح بده."><span>⌕</span><b>جست‌وجو</b><small>پاسخ و منابع</small></button>
+          </div>
+        </div>
+        <div id="messages" class="messages"></div>
+        <div id="activity" class="activity hidden"><div class="activity-orb"><i></i><i></i><i></i></div><div><b id="activityTitle">در حال پردازش</b><small id="activityDetail">آماده‌سازی درخواست…</small></div><span class="activity-pulse"></span></div>
+      </section>
+
+      <div class="composer-wrap">
+        <div id="imagePreview" class="image-preview hidden"></div>
+        <form id="composer" class="composer glass">
+          <button type="button" id="attachBtn" class="icon-btn composer-tool" title="افزودن تصویر">＋</button>
+          <input type="file" id="fileInput" accept="image/*" hidden>
+          <textarea id="promptInput" rows="1" placeholder="برای جارویس پیام بنویس..." aria-label="پیام"></textarea>
+          <button type="button" id="micBtn" class="icon-btn composer-tool" title="گفتار به متن">🎙</button>
+          <button type="submit" id="sendBtn" class="send-btn" aria-label="ارسال">↑</button>
+        </form>
+        <div class="composer-foot"><span><i class="tiny-dot"></i> پاسخ‌ها ممکن است نیاز به بررسی داشته باشند</span><span>JARVIS 3.5 · Secure by design</span></div>
+      </div>
+    </main>
+  </div>
+
+  <div id="settingsPanel" class="drawer hidden">
+    <div class="drawer-head"><div><p class="eyebrow">PERSONALIZE</p><h2>تنظیمات جارویس</h2></div><button class="icon-btn" data-close="settings">×</button></div>
+    <div class="drawer-content">
+      <section class="setting-section"><h3>هویت و رفتار</h3>
+        <label>نامی که جارویس صدایت می‌کند<input id="displayName" placeholder="مثلاً مهدی" maxlength="40"></label>
+        <label>سبک پاسخ<select id="tone"><option value="balanced">متعادل و دوستانه</option><option value="professional">رسمی و حرفه‌ای</option><option value="concise">کوتاه و مستقیم</option><option value="warm">صمیمی و گرم</option></select></label>
+        <label>سطح تفکر<select id="thinking"><option value="low">3.5 کم — پاسخ سریع‌تر و مصرف کمتر</option><option value="medium" selected>3.5 متوسط — تعادل کیفیت و مصرف</option><option value="high">3.5 زیاد — پردازش عمیق‌تر</option></select><small class="hint">سطح تفکر، در صورت پشتیبانی مدل، روی پارامترهای درخواست اثر می‌گذارد؛ اشتراک پولی در این نسخه پیاده‌سازی نشده است.</small></label>
+        <label class="toggle-row"><span><b>ذخیره حافظه گفتگو</b><small>ذخیره در فضای خصوصی Firebase</small></span><input id="memoryEnabled" type="checkbox" checked></label>
+      </section>
+      <section class="setting-section"><h3>مدیریت API</h3><p class="hint">کلیدها ذخیره‌شده در این مرورگر هستند. برای انتشار عمومی، از کلیدهای کم‌سهمیه استفاده کن؛ Firebase Rules از کلیدهای API محافظت نمی‌کند.</p>
+        <div class="api-group"><div class="api-group-head"><b>Groq</b><span class="api-badge">OpenAI-compatible</span></div><div id="groqKeys" class="key-list"></div><button class="btn btn-soft add-key" data-provider="groq">＋ افزودن API</button></div>
+        <div class="api-group"><div class="api-group-head"><b>Gemini</b><span class="api-badge">Google AI</span></div><div id="geminiKeys" class="key-list"></div><button class="btn btn-soft add-key" data-provider="gemini">＋ افزودن API</button></div>
+        <div class="api-group"><div class="api-group-head"><b>API آزاد</b><span class="api-badge">OpenAI-compatible</span></div><div id="customKeys" class="key-list"></div><button class="btn btn-soft add-key" data-provider="custom">＋ افزودن API</button></div>
+        <label>ارائه‌دهنده پیش‌فرض<select id="provider"><option value="groq">Groq</option><option value="gemini">Gemini</option><option value="custom">API آزاد</option></select></label>
+        <label>نام مدل (اختیاری)<input id="modelName" placeholder="مثلاً مدل پشتیبانی‌شده توسط سرویس"></label>
+        <label>Custom API Base URL<input id="customBase" placeholder="https://api.example.com/v1"></label>
+        <button id="saveSettings" class="btn btn-primary full-width">ذخیره تنظیمات</button>
+        <p id="settingsStatus" class="hint"></p>
+      </section>
+      <section class="setting-section"><h3>صدا و حریم خصوصی</h3>
+        <label class="toggle-row"><span><b>پاسخ صوتی</b><small>خواندن پاسخ با صدای دستگاه</small></span><input id="speechEnabled" type="checkbox"></label>
+        <label class="toggle-row"><span><b>تشخیص گفتار</b><small>نیازمند پشتیبانی مرورگر</small></span><input id="voiceEnabled" type="checkbox" checked></label>
+        <p class="hint">عبارت بیدارباش «هی جارویس» در نسخه وب فقط وقتی صفحه فعال است قابل شبیه‌سازی است؛ مرورگر معمولی نمی‌تواند بعد از بسته‌شدن صفحه، همیشه در پس‌زمینه گوش کند.</p>
+        <button id="clearLocal" class="btn btn-danger full-width">پاک‌کردن کلیدهای ذخیره‌شده در این مرورگر</button>
+      </section>
+    </div>
+  </div>
+
+  <div id="adminPanel" class="drawer hidden">
+    <div class="drawer-head"><div><p class="eyebrow">SYSTEM CONSOLE</p><h2>پنل مدیریت</h2></div><button class="icon-btn" data-close="admin">×</button></div>
+    <div class="drawer-content"><div id="adminContent"><p class="hint">در حال بارگذاری آمار…</p></div>
+      <section class="setting-section"><h3>کاربران ثبت‌شده</h3><p class="hint">نمایش ایمیل کاربران فقط با تنظیم صحیح Firebase Security Rules و دسترسی مدیریتی امن فعال می‌شود.</p><div id="userTable" class="user-table"></div></section>
+    </div>
+  </div>
+  <div id="toast" class="toast hidden"></div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

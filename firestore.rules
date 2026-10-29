@@ -1,0 +1,26 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
+    function isAdmin() {
+      return signedIn() && request.auth.token.email == 'mhdyk3613@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    match /users/{uid} {
+      allow read, create, update: if isOwner(uid);
+      allow delete: if isOwner(uid) || isAdmin();
+
+      match /chats/{chatId} {
+        allow read, create, update, delete: if isOwner(uid);
+      }
+    }
+
+    /* Do not expose a public users collection for listing emails.
+       Admin-wide user enumeration requires a trusted server/Cloud Function using Admin SDK. */
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
