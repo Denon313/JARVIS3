@@ -3,8 +3,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/fireba
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 
 const $ = (id) => document.getElementById(id);
-const state = { provider: localStorage.getItem("jarvis_provider") || "groq", apiKey: localStorage.getItem("jarvis_api_key") || "", model: localStorage.getItem("jarvis_model") || "", webSearch: localStorage.getItem("jarvis_web_search") === "true", remember: localStorage.getItem("jarvis_remember_key") === "true", image: null, imageData: null, busy: false, user: null, history: JSON.parse(localStorage.getItem("jarvis_history") || "[]"), activeHistory: null, auth: null };
-const defaults = { groq: "llama-3.3-70b-versatile", gemini: "gemini-2.5-flash" };
+const state = { provider: localStorage.getItem("jarvis_provider") || "groq", apiKey: localStorage.getItem("jarvis_api_key") || "", model: (localStorage.getItem("jarvis_model") === "gemini-2.5-flash" ? "gemini-3.8-flash" : (localStorage.getItem("jarvis_model") || "")), webSearch: localStorage.getItem("jarvis_web_search") === "true", remember: localStorage.getItem("jarvis_remember_key") === "true", image: null, imageData: null, busy: false, user: null, history: JSON.parse(localStorage.getItem("jarvis_history") || "[]"), activeHistory: null, auth: null };
+const defaults = { groq: "llama-3.3-70b-versatile", gemini: "gemini-3.8-flash" };
 const icons = {
   assistant: '<svg viewBox="0 0 48 48"><path d="M24 5 42 15.5v17L24 43 6 32.5v-17L24 5Z"/><path d="M15 29V19l9-5 9 5v10l-9 5-9-5Z"/></svg>',
   user: '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
